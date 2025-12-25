@@ -320,7 +320,7 @@ public class Monster extends AbstractLoadedLife {
         return stats.getRevives();
     }
 
-    public List<Monster> getReviveMonsters() {
+    public synchronized List<Monster> getReviveMonsters() {
         if (revivingMonsters == null) {
             revivingMonsters = stats.getRevives().stream().map(x -> LifeFactory.getMonster(x)).filter(x -> x != null).toList();
         }
@@ -956,15 +956,6 @@ public class Monster extends AbstractLoadedLife {
         for (MonsterListener listener : listenersList) {
             listener.monsterKilled(killer, getAnimationTime("die1"));
         }
-
-        statiLock.lock();
-        try {
-            stati.clear();
-            alreadyBuffed.clear();
-            listeners.clear();
-        } finally {
-            statiLock.unlock();
-        }
     }
 
     private void dispatchMonsterDamaged(Character from, int trueDmg) {
@@ -1006,6 +997,15 @@ public class Monster extends AbstractLoadedLife {
 
         for (MonsterListener listener : listenersList) {
             listener.monsterCleared();
+        }
+
+        statiLock.lock();
+        try {
+            stati.clear();
+            alreadyBuffed.clear();
+            listeners.clear();
+        } finally {
+            statiLock.unlock();
         }
     }
 

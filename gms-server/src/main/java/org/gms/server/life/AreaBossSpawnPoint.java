@@ -47,7 +47,7 @@ public class AreaBossSpawnPoint extends SpawnPoint {
                     mob.getId(),
                     mobTime / 60
                 );
-                map.broadcastStringMessage(6, String.format("[野外BOSS] {0}  {1}", mob.getName(), spawnMessage));
+                map.broadcastStringMessage(6, String.format("[野外BOSS] %s  %s", mob.getName(), spawnMessage));
             }
 
             @Override
