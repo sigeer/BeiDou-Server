@@ -119,6 +119,9 @@ public class Monster extends AbstractLoadedLife {
     private final Lock animationLock = new ReentrantLock();
     private final Lock aggroUpdateLock = new ReentrantLock();
 
+    Monster revivedFrom;
+    private List<Monster> revivingMonsters;
+
     public Monster(int id, MonsterStats stats) {
         super(id);
         initWithStats(stats);
@@ -168,6 +171,7 @@ public class Monster extends AbstractLoadedLife {
 
     public void setMap(MapleMap map) {
         this.map = map;
+        dispatchMonsterSpawned();
     }
 
     public int getParentMobOid() {
@@ -314,6 +318,13 @@ public class Monster extends AbstractLoadedLife {
 
     private List<Integer> getRevives() {
         return stats.getRevives();
+    }
+
+    public List<Monster> getReviveMonsters() {
+        if (revivingMonsters == null) {
+            revivingMonsters = stats.getRevives().stream().map(x -> LifeFactory.getMonster(x)).filter(x -> x != null).toList();
+        }
+        return revivingMonsters;
     }
 
     private byte getTagColor() {
@@ -811,8 +822,7 @@ public class Monster extends AbstractLoadedLife {
                     Character controller = lastController.getLeft();
                     boolean aggro = lastController.getRight();
 
-                    for (Integer mid : toSpawn) {
-                        final Monster mob = LifeFactory.getMonster(mid);
+                    for (Monster mob : getReviveMonsters()) {
                         mob.setPosition(getPosition());
                         mob.setFh(getFh());
                         mob.setParentMobOid(getObjectId());
@@ -821,6 +831,7 @@ public class Monster extends AbstractLoadedLife {
                             mob.disableDrops();
                         }
                         reviveMap.spawnMonster(mob);
+                        mob.revivedFrom = Monster.this;
 
                         if (MobId.isDeadHorntailPart(mob.getId()) && reviveMap.isHorntailDefeated()) {
                             boolean htKilled = false;
@@ -905,21 +916,29 @@ public class Monster extends AbstractLoadedLife {
         }
     }
 
-    public void dispatchMonsterKilled(boolean hasKiller) {
-        processMonsterKilled(hasKiller);
+    public void dispatchMonsterKilled(Character killer) {
+        processMonsterKilled(killer);
+
+        if (getReviveMonsters().size() == 0){
+            dispatchMonsterCleared();
+        }
+
+        if (revivedFrom != null && revivedFrom.getReviveMonsters().stream().allMatch(x -> !x.isAlive())) {
+            revivedFrom.dispatchMonsterCleared();
+        }
 
         EventInstanceManager eim = getMap().getEventInstance();
         if (eim != null) {
             if (!this.getStats().isFriendly()) {
-                eim.monsterKilled(this, hasKiller);
+                eim.monsterKilled(this, killer != null);
             } else {
-                eim.friendlyKilled(this, hasKiller);
+                eim.friendlyKilled(this, killer != null);
             }
         }
     }
 
-    private synchronized void processMonsterKilled(boolean hasKiller) {
-        if (!hasKiller) {    // players won't gain EXP from a mob that has no killer, but a quest count they should
+    private synchronized void processMonsterKilled(Character killer) {
+        if (killer == null) {    // players won't gain EXP from a mob that has no killer, but a quest count they should
             dispatchRaiseQuestMobCount();
         }
 
@@ -935,7 +954,7 @@ public class Monster extends AbstractLoadedLife {
         }
 
         for (MonsterListener listener : listenersList) {
-            listener.monsterKilled(getAnimationTime("die1"));
+            listener.monsterKilled(killer, getAnimationTime("die1"));
         }
 
         statiLock.lock();
@@ -973,6 +992,34 @@ public class Monster extends AbstractLoadedLife {
 
         for (MonsterListener listener : listenersList) {
             listener.monsterHealed(trueHeal);
+        }
+    }
+
+    private void dispatchMonsterCleared() {
+        MonsterListener[] listenersList;
+        statiLock.lock();
+        try {
+            listenersList = listeners.toArray(new MonsterListener[listeners.size()]);
+        } finally {
+            statiLock.unlock();
+        }
+
+        for (MonsterListener listener : listenersList) {
+            listener.monsterCleared();
+        }
+    }
+
+    private void dispatchMonsterSpawned() {
+        MonsterListener[] listenersList;
+        statiLock.lock();
+        try {
+            listenersList = listeners.toArray(new MonsterListener[listeners.size()]);
+        } finally {
+            statiLock.unlock();
+        }
+
+        for (MonsterListener listener : listenersList) {
+            listener.monsterSpawned();
         }
     }
 

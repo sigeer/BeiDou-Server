@@ -23,6 +23,7 @@ package org.gms.server.life;
 
 import org.gms.client.Character;
 import org.gms.net.server.Server;
+import org.gms.server.maps.MapleMap;
 
 import java.awt.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,25 +32,23 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class SpawnPoint {
     private final int monster;
-    private final int mobTime;
+    protected final int mobTime;
     private final int team;
     private final int fh;
     private final int f;
     private final Point pos;
-    private long nextPossibleSpawn;
-    private int mobInterval = 5000;
-    private final AtomicInteger spawnedMonsters = new AtomicInteger(0);
-    private final boolean immobile;
+    protected long nextPossibleSpawn;
+    protected int mobInterval = 5000;
+    protected final AtomicInteger spawnedMonsters = new AtomicInteger(0);
     private boolean denySpawn = false;
 
-    public SpawnPoint(final Monster monster, Point pos, boolean immobile, int mobTime, int mobInterval, int team) {
-        this.monster = monster.getId();
+    public SpawnPoint(int monsterId, int f, int fh, Point pos, int mobTime, int mobInterval, int team) {
+        this.monster = monsterId;
         this.pos = new Point(pos);
         this.mobTime = mobTime;
         this.team = team;
-        this.fh = monster.getFh();
-        this.f = monster.getF();
-        this.immobile = immobile;
+        this.fh = fh;
+        this.f = f;
         this.mobInterval = mobInterval;
         this.nextPossibleSpawn = Server.getInstance().getCurrentTime();
     }
@@ -77,16 +76,13 @@ public class SpawnPoint {
         return mobTime >= 0 && spawnedMonsters.get() <= 0;
     }
 
-    public Monster getMonster() {
-        Monster mob = new Monster(LifeFactory.getMonster(monster));
-        mob.setPosition(new Point(pos));
-        mob.setTeam(team);
-        mob.setFh(fh);
-        mob.setF(f);
-        spawnedMonsters.incrementAndGet();
-        mob.addListener(new MonsterListener() {
+    protected MonsterListener getMonsterListener(Monster mob){
+        return new MonsterListener() {
             @Override
-            public void monsterKilled(int aniTime) {
+            public void monsterSpawned() {}
+
+            @Override
+            public void monsterKilled(Character killer, int aniTime) {
                 nextPossibleSpawn = Server.getInstance().getCurrentTime();
                 if (mobTime > 0) {
                     nextPossibleSpawn += SECONDS.toMillis(mobTime);
@@ -101,7 +97,24 @@ public class SpawnPoint {
 
             @Override
             public void monsterHealed(int trueHeal) {}
-        });
+
+            @Override
+            public void monsterCleared() {}
+        };
+    }
+
+    protected void setMonsterPosition(Monster mob) {
+        mob.setPosition(new Point(pos));
+    }
+
+    public Monster getMonster() {
+        Monster mob = new Monster(LifeFactory.getMonster(monster));
+        setMonsterPosition(mob);
+        mob.setTeam(team);
+        mob.setFh(fh);
+        mob.setF(f);
+        spawnedMonsters.incrementAndGet();
+        mob.addListener(getMonsterListener(mob));
         if (mobTime == 0) {
             nextPossibleSpawn = Server.getInstance().getCurrentTime() + mobInterval;
         }

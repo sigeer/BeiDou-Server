@@ -58,6 +58,7 @@ import org.gms.server.events.gm.Fitness;
 import org.gms.server.events.gm.Ola;
 import org.gms.server.events.gm.OxQuiz;
 import org.gms.server.events.gm.Snowball;
+import org.gms.server.life.AreaBossSpawnPoint;
 import org.gms.server.life.LifeFactory;
 import org.gms.server.life.LifeFactory.selfDestruction;
 import org.gms.server.life.Monster;
@@ -73,6 +74,7 @@ import org.gms.server.partyquest.CarnivalFactory.MCSkill;
 import org.gms.server.partyquest.GuardianSpawnPoint;
 import org.gms.util.PacketCreator;
 import org.gms.util.Pair;
+import org.gms.util.RandomPoint;
 import org.gms.util.Randomizer;
 
 import java.awt.*;
@@ -111,6 +113,7 @@ public class MapleMap {
 
     private final Map<Integer, MapObject> mapobjects = new LinkedHashMap<>();
     private final Set<Integer> selfDestructives = new LinkedHashSet<>();
+    private final Map<String, AreaBossSpawnPoint> bossSpawnPoints = new HashMap<>();
     private final Collection<SpawnPoint> monsterSpawn = Collections.synchronizedList(new LinkedList<>());
     private final Collection<SpawnPoint> allMonsterSpawn = Collections.synchronizedList(new LinkedList<>());
     private final AtomicInteger spawnedMonstersOnMap = new AtomicInteger(0);
@@ -1412,7 +1415,7 @@ public class MapleMap {
 
         if (chr == null) {
             if (removeKilledMonsterObject(monster)) {
-                monster.dispatchMonsterKilled(false);
+                monster.dispatchMonsterKilled(chr);
                 broadcastMessage(PacketCreator.killMonster(monster.getObjectId(), animation), monster.getPosition());
                 monster.aggroSwitchController(null, false);
             }
@@ -1493,7 +1496,7 @@ public class MapleMap {
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {     // thanks resinate for pointing out a memory leak possibly from an exception thrown
-                    monster.dispatchMonsterKilled(true);
+                    monster.dispatchMonsterKilled(chr);
                     broadcastMessage(PacketCreator.killMonster(monster.getObjectId(), animation), monster.getPosition());
                 }
             }
@@ -1545,7 +1548,7 @@ public class MapleMap {
             }
 
             if (removeKilledMonsterObject(monster)) {
-                monster.dispatchMonsterKilled(false);
+                monster.dispatchMonsterKilled(null);
             }
         }
     }
@@ -3171,7 +3174,7 @@ public class MapleMap {
     public void addMonsterSpawn(Monster monster, int mobTime, int team) {
         Point newpos = calcPointBelow(monster.getPosition());
         newpos.y -= 1;
-        SpawnPoint sp = new SpawnPoint(monster, newpos, !monster.isMobile(), mobTime, mobInterval, team);
+        SpawnPoint sp = new SpawnPoint(monster.getId(), monster.getF(), monster.getFh(), newpos, mobTime, mobInterval, team);
         monsterSpawn.add(sp);
         if (sp.shouldSpawn() || mobTime == -1) {// -1 does not respawn and should not either but force ONE spawn
             spawnMonster(sp.getMonster());
@@ -3181,8 +3184,31 @@ public class MapleMap {
     public void addAllMonsterSpawn(Monster monster, int mobTime, int team) {
         Point newpos = calcPointBelow(monster.getPosition());
         newpos.y -= 1;
-        SpawnPoint sp = new SpawnPoint(monster, newpos, !monster.isMobile(), mobTime, mobInterval, team);
+        SpawnPoint sp = new SpawnPoint(monster.getId(), monster.getF(), monster.getFh(), newpos, mobTime, mobInterval, team);
         allMonsterSpawn.add(sp);
+    }
+
+    public void setupAreaBoss(String name, int bossId, int mobTime, List<Map<String, Object>> rawList, String spawnMessage) {
+        AreaBossSpawnPoint sp = bossSpawnPoints.get(name);
+        if (sp != null) {
+            if (sp.shouldForceSpawn()) {
+                spawnMonster(sp.getMonster());
+            }
+            return;
+        }
+
+        List<RandomPoint> points = new LinkedList<>();
+        for (Map<String, Object> m : rawList) {
+            int minX = ((Number) m.get("minX")).intValue();
+            int maxX = ((Number) m.get("maxX")).intValue();
+            int y    = ((Number) m.get("y")).intValue();
+
+            points.add(new RandomPoint(minX, maxX, y));
+        }
+
+        sp = new AreaBossSpawnPoint(MapleMap.this, bossId,  points, mobTime, mobInterval, -1, spawnMessage);
+        bossSpawnPoints.put(name, sp);
+        spawnMonster(sp.getMonster());
     }
 
     public void removeMonsterSpawn(int mobId, int x, int y) {
@@ -3737,6 +3763,12 @@ public class MapleMap {
                 }
             }
         }
+
+        for (AreaBossSpawnPoint bossSpawnPoint : bossSpawnPoints.values()) {
+            if (bossSpawnPoint.shouldSpawn()) {
+                spawnMonster(bossSpawnPoint.getMonster());
+            }
+        }
     }
 
     public void mobMpRecovery() {
@@ -4179,7 +4211,7 @@ public class MapleMap {
         ht.setParentMobOid(htIntro.getObjectId());
         ht.addListener(new MonsterListener() {
             @Override
-            public void monsterKilled(int aniTime) {
+            public void monsterKilled(Character killer, int aniTime) {
             }
 
             @Override
@@ -4191,6 +4223,12 @@ public class MapleMap {
             public void monsterHealed(int trueHeal) {
                 ht.addHp(-trueHeal);
             }
+
+            @Override
+            public void monsterCleared() {}
+
+            @Override
+            public void monsterSpawned() {}
         });
         spawnMonsterOnGroundBelow(ht, targetPoint);
 
@@ -4200,7 +4238,7 @@ public class MapleMap {
 
             m.addListener(new MonsterListener() {
                 @Override
-                public void monsterKilled(int aniTime) {
+                public void monsterKilled(Character killer, int aniTime) {
                 }
 
                 @Override
@@ -4213,6 +4251,12 @@ public class MapleMap {
                 public void monsterHealed(int trueHeal) {
                     ht.addHp(trueHeal);
                 }
+
+                @Override
+                public void monsterCleared() {}
+
+                @Override
+                public void monsterSpawned() {}
             });
 
             spawnMonsterOnGroundBelow(m, targetPoint);
