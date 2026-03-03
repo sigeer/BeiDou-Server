@@ -54,6 +54,10 @@ import org.gms.net.server.world.PartyCharacter;
 import org.gms.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import lombok.Getter;
+import lombok.Setter;
+
 import org.gms.scripting.event.EventInstanceManager;
 import org.gms.server.StatEffect;
 import org.gms.server.TimerManager;
@@ -112,6 +116,9 @@ public class Monster extends AbstractLoadedLife {
     private ScheduledFuture<?> monsterItemDrop = null;
     private Runnable removeAfterAction = null;
     private boolean availablePuppetUpdate = true;
+    @Setter
+    @Getter
+    private int chaindMobOid = 0;
 
     private final Lock externalLock = new ReentrantLock();
     private final Lock monsterLock = new ReentrantLock(true);
@@ -816,13 +823,14 @@ public class Monster extends AbstractLoadedLife {
                         mob.setPosition(getPosition());
                         mob.setFh(getFh());
                         mob.setParentMobOid(getObjectId());
+                        mob.setChaindMobOid(getChaindMobOid());
 
                         if (dropsDisabled()) {
                             mob.disableDrops();
                         }
                         reviveMap.spawnMonster(mob);
 
-                        if (MobId.isDeadHorntailPart(mob.getId()) && reviveMap.isHorntailDefeated()) {
+                        if (MobId.isDeadHorntailPart(mob.getId()) && reviveMap.isHorntailDefeated(getChaindMobOid())) {
                             boolean htKilled = false;
                             Monster ht = reviveMap.getMonsterById(MobId.HORNTAIL);
 

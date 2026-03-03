@@ -1450,27 +1450,18 @@ public class MapleMap {
 
                     if (MobId.isZakumArm(monster.getId())) {
                         boolean makeZakReal = true;
-                        Collection<MapObject> objects = getMapObjects();
-                        for (MapObject object : objects) {
-                            Monster mons = getMonsterByOid(object.getObjectId());
-                            if (mons != null) {
-                                if (MobId.isZakumArm(mons.getId())) {
-                                    makeZakReal = false;
-                                    break;
-                                }
+                        List<Monster> objects = getAllMonsters();
+                        for (Monster mons : objects) {
+                            if (MobId.isZakumArm(mons.getId()) && mons.getChaindMobOid() == monster.getChaindMobOid()) {
+                                makeZakReal = false;
+                                break;
                             }
                         }
                         if (makeZakReal) {
                             MapleMap map = chr.getMap();
-
-                            for (MapObject object : objects) {
-                                Monster mons = map.getMonsterByOid(object.getObjectId());
-                                if (mons != null) {
-                                    if (mons.getId() == MobId.ZAKUM_1) {
-                                        makeMonsterReal(mons);
-                                        break;
-                                    }
-                                }
+                            Monster linkedZakum1 = map.getMonsterByOid(monster.getChaindMobOid());
+                            if (linkedZakum1 != null) {
+                                makeMonsterReal(linkedZakum1);
                             }
                         }
                     }
@@ -4161,9 +4152,10 @@ public class MapleMap {
         this.setDocked(state);
     }
 
-    public boolean isHorntailDefeated() {   // all parts of dead horntail can be found here?
+    public boolean isHorntailDefeated(int chaindMobOid) {   // all parts of dead horntail can be found here?
         for (int i = MobId.DEAD_HORNTAIL_MIN; i <= MobId.DEAD_HORNTAIL_MAX; i++) {
-            if (getMonsterById(i) == null) {
+            Monster deathPartMob = getMonsterById(i);
+            if (deathPartMob == null || deathPartMob.getChaindMobOid() == chaindMobOid) {
                 return false;
             }
         }
@@ -4177,6 +4169,7 @@ public class MapleMap {
 
         final Monster ht = LifeFactory.getMonster(MobId.HORNTAIL);
         ht.setParentMobOid(htIntro.getObjectId());
+        ht.setChaindMobOid(htIntro.getObjectId());
         ht.addListener(new MonsterListener() {
             @Override
             public void monsterKilled(int aniTime) {
@@ -4197,6 +4190,7 @@ public class MapleMap {
         for (int mobId = MobId.HORNTAIL_HEAD_A; mobId <= MobId.HORNTAIL_TAIL; mobId++) {
             Monster m = LifeFactory.getMonster(mobId);
             m.setParentMobOid(htIntro.getObjectId());
+            m.setChaindMobOid(htIntro.getObjectId());
 
             m.addListener(new MonsterListener() {
                 @Override
@@ -4216,6 +4210,16 @@ public class MapleMap {
             });
 
             spawnMonsterOnGroundBelow(m, targetPoint);
+        }
+    }
+
+    public void spawnZakum(Point pos) {
+        Monster zakum1 = LifeFactory.getMonster(MobId.ZAKUM_1);
+        spawnFakeMonsterOnGroundBelow(zakum1, pos);
+        for (int mobId = MobId.ZAKUM_ARM_1; mobId <= MobId.ZAKUM_ARM_8; mobId++) {
+            Monster zakumArm = LifeFactory.getMonster(mobId);
+            zakumArm.setChaindMobOid(zakum1.getObjectId());
+            spawnMonsterOnGroundBelow(zakumArm, pos);
         }
     }
 
