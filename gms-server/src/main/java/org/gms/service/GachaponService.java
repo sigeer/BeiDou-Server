@@ -259,17 +259,15 @@ public class GachaponService {
 
         int random = Randomizer.nextInt(poolRewards.size());
         GachaponRewardDO reward = poolRewards.get(random);
-        Item itemGained = player.getAbstractPlayerInteraction().gainItem(reward.getItemId(), reward.getQuantity(), true, true);
-        // 修复背包满导致的空指针
-        if (itemGained == null) {
-            return;
-        }
+        Item item = ItemInformationProvider.getInstance().generateVirtualItemById(reward.getItemId(), reward.getQuantity(), true);
+        player.getGachaponStorage().addItem(item);
+
         String gachaponMessage = I18nUtil.getMessage("GachaMessage.message1",player.getMap().getMapName(),reward.getQuantity(),ItemInformationProvider.getInstance().getName(reward.getItemId()));
         player.dropMessage(gachaponMessage);
         Gachapon.log(player, reward.getItemId(), player.getMap().getMapName());
 
         if (pool.getNotification()) {
-            Server.getInstance().broadcastMessage(player.getWorld(), PacketCreator.gachaponMessage(itemGained, player.getMap().getMapName(), player));
+            Server.getInstance().broadcastMessage(player.getWorld(), PacketCreator.gachaponMessage(item, player.getMap().getMapName(), player));
         }
     }
 

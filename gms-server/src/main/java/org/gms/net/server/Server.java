@@ -1463,32 +1463,6 @@ public class Server {
         return gmLevel;
     }
 
-    public void loadAccountStorages(Client c) {
-        int accountId = c.getAccID();
-        Set<Integer> accWorlds = new HashSet<>();
-        lgnWLock.lock();
-        try {
-            Set<Integer> chars = accountChars.get(accountId);
-
-            for (Integer cid : chars) {
-                Integer worldid = worldChars.get(cid);
-                if (worldid != null) {
-                    accWorlds.add(worldid);
-                }
-            }
-        } finally {
-            lgnWLock.unlock();
-        }
-
-        List<World> worldList = this.getWorlds();
-        for (Integer worldid : accWorlds) {
-            if (worldid < worldList.size()) {
-                World wserv = worldList.get(worldid);
-                wserv.loadAccountStorage(accountId);
-            }
-        }
-    }
-
     private static String getRemoteHost(Client client) {
         return SessionCoordinator.getSessionRemoteHost(client);
     }

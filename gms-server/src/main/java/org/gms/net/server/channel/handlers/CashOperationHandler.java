@@ -220,7 +220,6 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         cs.gainCash(cash, -4000);
                         if (chr.getStorage().gainSlots(qty)) {
                             log.debug("Chr {} bought {} slots to their account storage.", c.getPlayer().getName(), qty);
-                            chr.setUsedStorage();
 
                             c.sendPacket(PacketCreator.showBoughtStorageSlots(chr.getStorage().getSlots()));
                             c.sendPacket(PacketCreator.showCash(chr));
@@ -242,7 +241,6 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         cs.gainCash(cash, cItem, chr.getWorld());
                         if (chr.getStorage().gainSlots(qty)) {    // thanks ABaldParrot & Thora for detecting storage issues here
                             log.debug("Chr {} bought {} slots to their account storage", c.getPlayer().getName(), qty);
-                            chr.setUsedStorage();
 
                             c.sendPacket(PacketCreator.showBoughtStorageSlots(chr.getStorage().getSlots()));
                             c.sendPacket(PacketCreator.showCash(chr));

@@ -46,7 +46,8 @@ public enum ItemFactory {
     MERCHANT(6, false),
     CASH_OVERALL(7, true),
     MARRIAGE_GIFTS(8, false),
-    DUEY(9, false);
+    DUEY(9, false),
+    GACHAPON_STORAGE(10, false);
     private final int value;
     private final boolean account;
 
@@ -66,6 +67,10 @@ public enum ItemFactory {
 
     public int getValue() {
         return value;
+    }
+
+    public boolean isAccount() {
+        return account;
     }
 
     /**

@@ -35,6 +35,7 @@ import org.gms.constants.inventory.ItemConstants;
 import org.gms.net.packet.InPacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.gms.server.AbstractStorage;
 import org.gms.server.ItemInformationProvider;
 import org.gms.server.Storage;
 import org.gms.util.PacketCreator;
@@ -49,16 +50,8 @@ public class StorageProcessor {
     public static void storageAction(InPacket p, Client c) {
         ItemInformationProvider ii = ItemInformationProvider.getInstance();
         Character chr = c.getPlayer();
-        Storage storage = chr.getStorage();
-        String gmBlockedStorageMessage = "当前GM级别禁止使用仓库";
-
+        AbstractStorage storage = chr.getCurrentStorage();
         byte mode = p.readByte();
-
-        if (chr.getLevel() < 15) {
-            chr.dropMessage(1, "15级以后才可以使用仓库服务");
-            c.sendPacket(PacketCreator.enableActions());
-            return;
-        }
 
         if (c.tryacquireClient()) {
             try {
@@ -76,44 +69,23 @@ public class StorageProcessor {
                     slot = storage.getSlot(InventoryType.getByType(type), slot);
                     Item item = storage.getItem(slot);
 
-                    if (hasGMRestrictions(chr)) {
-                        chr.dropMessage(1, gmBlockedStorageMessage);
-                        log.info(String.format("GM %s blocked from using storage", chr.getName()));
-                        chr.sendPacket(PacketCreator.enableActions());
+                    if (!storage.takeOutItemCheck(item)) {
                         return;
                     }
 
-                    if (item != null) {
-                        if (ii.isPickupRestricted(item.getItemId()) && chr.haveItemWithId(item.getItemId(), true)) {
-                            c.sendPacket(PacketCreator.getStorageError((byte) 0x0C));
-                            return;
-                        }
+                    if (storage.takeOut(item)) {
+                        KarmaManipulator.toggleKarmaFlagToUntradeable(item);
+                        InventoryManipulator.addFromDrop(c, item, false);
 
-                        int takeoutFee = storage.getTakeOutFee();
-                        if (chr.getMeso() < takeoutFee) {
-                            c.sendPacket(PacketCreator.getStorageError((byte) 0x0B));
-                            return;
-                        }
+                        storage.onTakeOutSuccess();
 
-                        if (InventoryManipulator.checkSpace(c, item.getItemId(), item.getQuantity(), item.getOwner())) {
-                            if (storage.takeOut(item)) {
-                                chr.setUsedStorage();
+                        String itemName = ii.getName(item.getItemId());
+                        log.debug("Chr {} took out {}x {} ({})", c.getPlayer().getName(), item.getQuantity(), itemName, item.getItemId());
 
-                                KarmaManipulator.toggleKarmaFlagToUntradeable(item);
-                                InventoryManipulator.addFromDrop(c, item, false);
-                                chr.gainMeso(-takeoutFee, false);
-
-                                String itemName = ii.getName(item.getItemId());
-                                log.debug("Chr {} took out {}x {} ({})", c.getPlayer().getName(), item.getQuantity(), itemName, item.getItemId());
-
-                                storage.sendTakenOut(c, item.getInventoryType());
-                            } else {
-                                c.sendPacket(PacketCreator.enableActions());
-                                return;
-                            }
-                        } else {
-                            c.sendPacket(PacketCreator.getStorageError((byte) 0x0A));
-                        }
+                        storage.sendTakenOut(c, item.getInventoryType());
+                    } else {
+                        c.sendPacket(PacketCreator.enableActions());
+                        return;
                     }
                     break;
                 }
@@ -131,64 +103,48 @@ public class StorageProcessor {
                         return;
                     }
 
-                    if (hasGMRestrictions(chr)) {
-                        chr.dropMessage(1, gmBlockedStorageMessage);
-                        log.info(String.format("GM %s blocked from using storage", chr.getName()));
-                        chr.sendPacket(PacketCreator.enableActions());
+                    if (!storage.storeItemCheck(slot, itemId, quantity)) {
                         return;
                     }
 
-                    if (quantity < 1) {
-                        c.sendPacket(PacketCreator.enableActions());
-                        return;
-                    }
-                    if (storage.isFull()) {
-                        c.sendPacket(PacketCreator.getStorageError((byte) 0x11));
-                        return;
-                    }
-                    int storeFee = storage.getStoreFee();
-                    if (chr.getMeso() < storeFee) {
-                        c.sendPacket(PacketCreator.getStorageError((byte) 0x0B));
-                    } else {
-                        Item item;
+                    Item item;
 
-                        inv.lockInventory(); // thanks imbee for pointing a dupe within storage
-                        try {
-                            item = inv.getItem(slot);
-                            if (item != null && item.getItemId() == itemId
-                                    && (item.getQuantity() >= quantity || ItemConstants.isRechargeable(itemId))) {
-                                if (ItemId.isWeddingRing(itemId) || ItemId.isWeddingToken(itemId)) {
-                                    c.sendPacket(PacketCreator.enableActions());
-                                    return;
-                                }
-
-                                if (ItemConstants.isRechargeable(itemId)) {
-                                    quantity = item.getQuantity();
-                                }
-
-                                InventoryManipulator.removeFromSlot(c, invType, slot, quantity, false);
-                            } else {
+                    inv.lockInventory(); // thanks imbee for pointing a dupe within storage
+                    try {
+                        item = inv.getItem(slot);
+                        if (item != null && item.getItemId() == itemId
+                                && (item.getQuantity() >= quantity || ItemConstants.isRechargeable(itemId))) {
+                            if (ItemId.isWeddingRing(itemId) || ItemId.isWeddingToken(itemId)) {
                                 c.sendPacket(PacketCreator.enableActions());
                                 return;
                             }
 
-                            item = item.copy(); // thanks Robin Schulz & BHB88 for noticing a inventory glitch when storing items
-                        } finally {
-                            inv.unlockInventory();
+                            if (ItemConstants.isRechargeable(itemId)) {
+                                quantity = item.getQuantity();
+                            }
+
+                            InventoryManipulator.removeFromSlot(c, invType, slot, quantity, false);
+                        } else {
+                            c.sendPacket(PacketCreator.enableActions());
+                            return;
                         }
 
-                        chr.gainMeso(-storeFee, false, true, false);
-
-                        KarmaManipulator.toggleKarmaFlagToUntradeable(item);
-                        item.setQuantity(quantity);
-
-                        storage.store(item); // inside a critical section, "!(storage.isFull())" is still in effect...
-                        chr.setUsedStorage();
-
-                        String itemName = ii.getName(item.getItemId());
-                        log.debug("Chr {} stored {}x {} ({})", c.getPlayer().getName(), item.getQuantity(), itemName, item.getItemId());
-                        storage.sendStored(c, ItemConstants.getInventoryType(itemId));
+                        item = item.copy(); // thanks Robin Schulz & BHB88 for noticing a inventory glitch when storing items
+                    } finally {
+                        inv.unlockInventory();
                     }
+
+                    storage.OnStoreSuccess();
+
+                    KarmaManipulator.toggleKarmaFlagToUntradeable(item);
+                    item.setQuantity(quantity);
+
+                    storage.store(item); // inside a critical section, "!(storage.isFull())" is still in effect...
+
+
+                    String itemName = ii.getName(item.getItemId());
+                    log.debug("Chr {} stored {}x {} ({})", c.getPlayer().getName(), item.getQuantity(), itemName, item.getItemId());
+                    storage.sendStored(c, ItemConstants.getInventoryType(itemId));
                     break;
                 }
                 case 6: // Arrange items
@@ -202,14 +158,7 @@ public class StorageProcessor {
                     int storageMesos = storage.getMeso();
                     int playerMesos = chr.getMeso();
 
-                    if (hasGMRestrictions(chr)) {
-                        chr.dropMessage(1, gmBlockedStorageMessage);
-                        log.info(String.format("GM %s blocked from using storage", chr.getName()));
-                        chr.sendPacket(PacketCreator.enableActions());
-                        return;
-                    }
-
-                    if ((meso > 0 && storageMesos >= meso) || (meso < 0 && playerMesos >= -meso)) {
+                    if ((meso > 0 && storage.takeOutMesoCheck(meso)) || (meso < 0 && storage.storeMesoCheck(-meso))) {
                         if (meso < 0 && (storageMesos - meso) < 0) {
                             meso = Integer.MIN_VALUE + storageMesos;
                             if (meso < playerMesos) {
@@ -225,7 +174,6 @@ public class StorageProcessor {
                         }
                         storage.setMeso(storageMesos - meso);
                         chr.gainMeso(meso, false, true, false);
-                        chr.setUsedStorage();
                         log.debug("Chr {} {} {} mesos", c.getPlayer().getName(), meso > 0 ? "took out" : "stored", Math.abs(meso));
                         storage.sendMeso(c);
                     } else {

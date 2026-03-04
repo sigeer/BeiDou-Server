@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.gms.client.*;
 import org.gms.client.Character;
+import org.gms.client.inventory.ItemFactory;
 import org.gms.client.keybind.KeyBinding;
 import org.gms.config.GameConfig;
 import org.gms.constants.id.MapId;
@@ -22,7 +23,12 @@ import org.gms.net.server.world.Messenger;
 import org.gms.net.server.world.Party;
 import org.gms.net.server.world.PartyCharacter;
 import org.gms.net.server.world.World;
+import org.gms.server.AbstractStorage;
+import org.gms.server.AccountStorage;
+import org.gms.server.GachaponStorage;
 import org.gms.server.Storage;
+import org.gms.server.StorageFactory;
+import org.gms.server.StorageType;
 import org.gms.server.life.MobSkill;
 import org.gms.server.life.MobSkillFactory;
 import org.gms.server.life.MobSkillType;
@@ -413,12 +419,10 @@ public class CharacterService {
         chr.setLastmonthfameids(lastMonthFameIds);
 
         chr.getBuddylist().loadFromDb(cid);
-        Storage accountStorage = world.getAccountStorage(charactersDO.getAccountid());
-        if (accountStorage == null) {
-            world.loadAccountStorage(charactersDO.getAccountid());
-            accountStorage = world.getAccountStorage(charactersDO.getAccountid());
-        }
-        chr.setStorage(accountStorage);
+        AbstractStorage accountStorage = StorageFactory.loadOrCreateFromDB(StorageType.AccountStorage, chr);
+        chr.setStorage((AccountStorage)accountStorage);
+        AbstractStorage gachaponStorage = StorageFactory.loadOrCreateFromDB(StorageType.GachaponStorage, chr);
+        chr.setGachaponStorage((GachaponStorage)gachaponStorage);
         chr.reapplyLocalStats();
         chr.changeHpMp(charactersDO.getHp(), charactersDO.getMp(), true);
         return chr;

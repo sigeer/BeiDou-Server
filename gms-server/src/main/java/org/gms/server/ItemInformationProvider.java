@@ -31,6 +31,7 @@ import org.gms.client.inventory.Equip;
 import org.gms.client.inventory.Inventory;
 import org.gms.client.inventory.InventoryType;
 import org.gms.client.inventory.Item;
+import org.gms.client.inventory.Pet;
 import org.gms.client.inventory.WeaponType;
 import org.gms.config.GameConfig;
 import org.gms.constants.id.ItemId;
@@ -2385,5 +2386,21 @@ public class ItemInformationProvider {
             }
         }
         return retItems;
+    }
+
+    public Item generateVirtualItemById(int id, short quantity, boolean randomIfEquip) {
+         if (ItemConstants.getInventoryType(id).equals(InventoryType.EQUIP)) {
+            Item eqp = getEquipById(id);
+            if (randomIfEquip) {
+                randomizeStats((Equip)eqp);
+            }
+            return eqp;
+        } else {
+            int petId = -1;
+            if (ItemConstants.isPet(id)) {
+                petId = Pet.createPet(id);
+            }
+            return new Item(id, (short) 0, quantity, petId);
+        }
     }
 }

@@ -441,6 +441,10 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
         }
     }
 
+    public void openGachaponStorage() {
+        getPlayer().getGachaponStorage().sendStorage(getClient(), npc);
+    }
+
     public void doGachapon() {
         gachaponService.doGachapon(getPlayer(), npc);
     }

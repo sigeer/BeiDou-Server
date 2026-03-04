@@ -331,7 +331,13 @@ public class Character extends AbstractCharacterObject {
     private SkinColor skinColor = SkinColor.NORMAL;
     @Getter
     @Setter
-    private Storage storage = null;
+    private AccountStorage storage = null;
+    @Getter
+    @Setter
+    private GachaponStorage gachaponStorage = null;
+    @Getter
+    @Setter
+    private AbstractStorage currentStorage = null;
     @Getter
     @Setter
     private Trade trade = null;
@@ -4589,10 +4595,6 @@ public class Character extends AbstractCharacterObject {
         this.familyEntry = entry;
     }
 
-    public void setUsedStorage() {
-        usedStorage = true;
-    }
-
     public List<Ring> getFriendshipRings() {
         Collections.sort(friendshipRings);
         return friendshipRings;
@@ -7740,9 +7742,11 @@ public class Character extends AbstractCharacterObject {
                     cashShop.save(con);
                 }
 
-                if (storage != null && usedStorage) {
+                if (storage != null) {
                     storage.saveToDB(con);
-                    usedStorage = false;
+                }
+                if (gachaponStorage != null) {
+                    gachaponStorage.saveToDB(con);
                 }
 
                 con.commit();

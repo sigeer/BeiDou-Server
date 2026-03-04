@@ -165,7 +165,6 @@ public class World {
     private final Lock chnWLock;
 
     private final Map<Integer, SortedMap<Integer, Character>> accountChars = new HashMap<>();
-    private final Map<Integer, Storage> accountStorages = new HashMap<>();
     private final Lock accountCharsLock = new ReentrantLock(true);
 
     private final Set<Integer> queuedGuilds = new HashSet<>();
@@ -477,35 +476,6 @@ public class World {
         } finally {
             accountCharsLock.unlock();
         }
-    }
-
-    public void loadAccountStorage(Integer accountId) {
-        if (getAccountStorage(accountId) == null) {
-            registerAccountStorage(accountId);
-        }
-    }
-
-    private void registerAccountStorage(Integer accountId) {
-        Storage storage = Storage.loadOrCreateFromDB(accountId, this.id);
-        accountCharsLock.lock();
-        try {
-            accountStorages.put(accountId, storage);
-        } finally {
-            accountCharsLock.unlock();
-        }
-    }
-
-    public void unregisterAccountStorage(Integer accountId) {
-        accountCharsLock.lock();
-        try {
-            accountStorages.remove(accountId);
-        } finally {
-            accountCharsLock.unlock();
-        }
-    }
-
-    public Storage getAccountStorage(Integer accountId) {
-        return accountStorages.get(accountId);
     }
 
     private static List<Entry<Integer, SortedMap<Integer, Character>>> getSortedAccountCharacterView(Map<Integer, SortedMap<Integer, Character>> map) {
