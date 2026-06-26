@@ -113,6 +113,9 @@ public enum RecvOpcode implements Opcode {
     CHANGE_MAP_SPECIAL(0x64), // 特殊更改地图
     USE_INNER_PORTAL(0x65), // 使用内部传送门
     TROCK_ADD_MAP(0x66), // 添加传送岩地图
+    ANTI_MACRO_ITEM_USE_REQUEST(0x67), // 使用测谎仪 CWvsContext::SendAntiMacroItemUseRequest
+    ANTI_MACRO_SKILL_USE_RESPONSE(0x68), // 使用测谎技能 CUserLocal::DoAntiMacroSkill
+    ANTI_MACRO_RESPONSE(0x69), // 提交验证码
     REPORT(0x6A), // 报告
     QUEST_ACTION(0x6B), // 任务操作
     //USER_CALC_DAMAGE_STAT_SET_REQUEST(0x6C), // 用户计算伤害统计设置请求（未实现）

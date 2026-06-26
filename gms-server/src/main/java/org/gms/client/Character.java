@@ -500,6 +500,9 @@ public class Character extends AbstractCharacterObject {
     private static final HpMpAlertService hpMpAlertService = ServerManager.getApplicationContext().getBean(HpMpAlertService.class);
     private static final InventoryService inventoryService = ServerManager.getApplicationContext().getBean(InventoryService.class);
 
+    @Getter
+    @Setter
+    private long lastDamageTime = 0L;
     /**
      * 最后攻击时间
      * 用来校验攻击速度是否过快
@@ -9990,5 +9993,12 @@ public class Character extends AbstractCharacterObject {
      */
     public void enableActions() {
         sendPacket(PacketCreator.enableActions());
+    }
+
+    /**
+     * 5s 内未造成伤害
+     */
+    public boolean isBattle() {
+        return Server.getInstance().getCurrentTime() - lastDamageTime < 5000;
     }
 }

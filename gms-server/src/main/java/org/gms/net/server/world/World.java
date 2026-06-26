@@ -30,6 +30,7 @@ import org.gms.client.BuddyList.BuddyOperation;
 import org.gms.client.BuddylistEntry;
 import org.gms.client.Character;
 import org.gms.client.Family;
+import org.gms.client.antiMacro.AntiMacroService;
 import org.gms.config.GameConfig;
 import org.gms.config.GameConfig;
 import org.gms.constants.game.GameConstants;
@@ -160,6 +161,8 @@ public class World {
     private final ServicesManager services = new ServicesManager(WorldServices.SAVE_CHARACTER);
     private final MatchCheckerCoordinator matchChecker = new MatchCheckerCoordinator();
     private final PartySearchCoordinator partySearch = new PartySearchCoordinator();
+    @Getter
+    private final AntiMacroService antiMacroService = new AntiMacroService();
 
     private final Lock chnRLock;
     private final Lock chnWLock;

@@ -19,6 +19,7 @@ public class ItemId {
     public static final int BUMMER_EFFECT = 4290001;
     public static final int ARPQ_SHIELD = 2022269;
     public static final int ROARING_TIGER_MESSENGER = 5390006;
+    public static final int AntiMacroItem = 2190000;
 
     public static boolean isExpIncrease(int itemId) {
         return itemId >= 2022450 && itemId <= 2022452;
