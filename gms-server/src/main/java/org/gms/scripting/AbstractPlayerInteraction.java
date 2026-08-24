@@ -526,21 +526,35 @@ public class AbstractPlayerInteraction {
         }
     }
 
-    public Item evolvePet(byte slot, int afterId) {
-        Pet evolved = null;
-        Pet target;
-
-        long period = DAYS.toMillis(90);    //refreshes expiration date: 90 days
-
-
-        target = getPlayer().getPet(slot);
+    public Item evolvePet(byte slot) {
+        Pet target = getPlayer().getPet(slot);
         if (target == null) {
             getPlayer().message("Pet could not be evolved...");
             return (null);
         }
 
-        Item tmp = gainItem(afterId, (short) 1, false, true, period, target);
-            
+
+        int afterId = PetDataFactory.getEvolvedPetItemId(target.getItemId());
+        if (afterId == 0) {
+            getPlayer().message("Pet could not be evolved...");
+            return null;
+        }
+        
+        Item targetPetItem = target.getItem(getPlayer());
+        long leftLife = targetPetItem.getExpiration() - System.currentTimeMillis();
+        Item tmp = gainItem(afterId, (short) 1, false, true, leftLife, target);
+        if (tmp == null) {
+            getPlayer().message("Pet could not be evolved...");
+            return null;
+        }
+
+        // gainItem 返回的Item和背包中的Item不是同一个
+        Item actualPetItem = getPlayer().getInventory(InventoryType.CASH)
+            .findByCashId(tmp.getPetId());
+        if (actualPetItem == null) {
+            getPlayer().message("Pet could not be evolved...");
+            return null;
+        }
             /*
             evolved = Pet.loadFromDb(tmp.getItemId(), tmp.getPosition(), tmp.getPetId());
             
@@ -561,10 +575,10 @@ public class AbstractPlayerInteraction {
             c.sendPacket(PacketCreator.enableActions());
             chr.getClient().getWorldServer().registerPetHunger(chr, chr.getPetIndex(evolved));
             */
+        getPlayer().summonPet(actualPetItem.getPet(), slot, true);
+        InventoryManipulator.removeFromSlot(c, InventoryType.CASH, targetPetItem.getPosition(), (short) 1, false);
 
-        InventoryManipulator.removeFromSlot(c, InventoryType.CASH, target.getPosition(), (short) 1, false);
-
-        return evolved;
+        return actualPetItem;
     }
 
     public void gainItem(int id, short quantity) {
@@ -603,19 +617,14 @@ public class AbstractPlayerInteraction {
                 if (from != null) {
                     evolved = Pet.loadFromDb(id, (short) 0, petId);
 
-                    Point pos = getPlayer().getPosition();
-                    pos.y -= 12;
-                    evolved.setPos(pos);
-                    evolved.setFh(getPlayer().getMap().getFootholds().findBelow(evolved.getPos()).getId());
-                    evolved.setStance(0);
-                    evolved.setSummoned(true);
-
                     evolved.setName(from.getName().compareTo(ItemInformationProvider.getInstance().getName(from.getItemId())) != 0 ? from.getName() : ItemInformationProvider.getInstance().getName(id));
                     evolved.setTameness(from.getTameness());
                     evolved.setFullness(from.getFullness());
                     evolved.setLevel(from.getLevel());
                     evolved.setExpiration(System.currentTimeMillis() + expires);
-                    evolved.saveToDb();
+                    evolved.setPetAttribute(from.getPetAttribute());
+                    evolved.setPetSkill(from.getPetSkill());
+                    evolved.saveToDb(-1);
                 }
 
                 //InventoryManipulator.addById(c, id, (short) 1, null, petId, expires == -1 ? -1 : System.currentTimeMillis() + expires);

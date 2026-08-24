@@ -57,7 +57,7 @@ function end(mode, type, selection) {
         if (status == 0) {
             if (qm.haveItem(5460000)) {
                 qm.completeQuest();
-                qm.teachSkill(8, 1, 1, -1);
+                qm.teachSkill(qm.getPlayer().getJob().getMultiPetSkillId(), 1, 1, -1);
                 qm.gainItem(5460000, -1, false);
                 qm.sendOk("You got the Pet Snack! Thanks! You can use these to feed multiple pets at once!");
             } else {

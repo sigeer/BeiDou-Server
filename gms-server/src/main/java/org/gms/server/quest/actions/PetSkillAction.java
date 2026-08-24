@@ -23,6 +23,9 @@ package org.gms.server.quest.actions;
 
 import org.gms.client.Character;
 import org.gms.client.QuestStatus;
+import org.gms.client.inventory.InventoryType;
+import org.gms.client.inventory.Item;
+import org.gms.client.inventory.Pet;
 import org.gms.constants.inventory.ItemConstants;
 import org.gms.provider.Data;
 import org.gms.provider.DataTool;
@@ -44,21 +47,25 @@ public class PetSkillAction extends AbstractQuestAction {
 
     @Override
     public void processData(Data data) {
-        flag = DataTool.getInt("petskill", data);
+        flag = DataTool.getInt( data);
     }
 
     @Override
     public boolean check(Character chr, Integer extSelection) {
-        QuestStatus status = chr.getQuest(Quest.getInstance(questID));
-        if (!(status.getStatus() == QuestStatus.Status.NOT_STARTED && status.getForfeited() > 0)) {
+        Pet bossPet = chr.getPet(0);
+        if (bossPet == null) {
             return false;
         }
-
-        return chr.getPet(0) != null;
+        
+        return (bossPet.getPetSkill() & flag) != flag;
     }
 
     @Override
     public void run(Character chr, Integer extSelection) {
-        chr.getPet(0).setFlag((byte) ItemConstants.getFlagByInt(flag));
+        Pet bossPet = chr.getPet(0);
+        if (bossPet != null) {
+            bossPet.learnSkill(chr, (short) flag);
+        }
+
     }
 } 

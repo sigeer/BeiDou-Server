@@ -47,59 +47,40 @@ function end(mode, type, selection) {
         } else if (status == 1) {
             qm.sendNextPrev("Then here we go...! #rHYAHH!#k");
         } else if (status == 2) {
-            var petidx = -1;
-            var petItemid;
-            for (var i = 0; i < 3; i++) {
-                var pet = qm.getPlayer().getPet(i);
-                if (pet != null) {
-                    var id = pet.getItemId();
-                    if (id >= 5000029 && id <= 5000033) {
-                        petItemid = 5000030;
-                        petidx = i;
-                        break;
-                    } else if (id >= 5000048 && id <= 5000053) {    // thanks Conrad for noticing Robo pets not being able to re-evolve
-                        petItemid = 5000049;
-                        petidx = i;
-                        break;
-                    }
-                }
-            }
-
-            if (petidx == -1) {
-                qm.sendOk("Something wrong, try again.");
+            var petIds = qm.getPlayer().getPets()
+                .filter(x => x != null && ((x.getItemId() >= 5000030 && x.getItemId() <= 5000033) || (x.getItemId() >= 5000049 && x.getItemId() <= 5000052)) && x.getLevel() >= 15)
+                .map(x => x.getUniqueId());
+            if (petIds.length === 0) {
+                qm.sendOk("It looks like your pet is not grown enough to be evolved yet. Train it a bit more, util it reaches #blevel 15#k.");
                 qm.dispose();
                 return;
             }
 
-            var pool = (petItemid == 5000030) ? 10 : 11;
-            do {
-                var rand = 1 + Math.floor(Math.random() * pool);
-                var after = 0;
-                if (rand >= 1 && rand <= 3) {
-                    after = petItemid;
-                } else if (rand >= 4 && rand <= 6) {
-                    after = petItemid + 1;
-                } else if (rand >= 7 && rand <= 9) {
-                    after = petItemid + 2;
-                } else if (rand == 10) {
-                    after = petItemid + 3;
-                } else {
-                    after = petItemid + 4;
-                }
-            } while (after == pet.getItemId());
-
-            /*if (name.equals(ItemInformationProvider.getInstance().getName(id))) {
-    name = ItemInformationProvider.getInstance().getName(after);
-} */
-
-            qm.gainMeso(-10000);
-            qm.gainItem(5380000, -1);
-            qm.evolvePet(petidx, after);
-            qm.completeQuest();
-
-            qm.sendOk("Woo! It worked again! #rYou may find your new pet under your 'CASH' inventory.\r #kIt used to be a #b#i" + id + "##t" + id + "##k, and now it's \r a#b #i" + after + "##t" + after + "##k! \r\n Come back with 10,000 mesos and another Rock of Evolution if you don't like it!\r\n\r\n#fUI/UIWindow.img/QuestIcon/4/0#\r\n#v" + after + "# #t" + after + "#");
-        } else if (status == 3) {
-            qm.dispose();
+            qm.askPetLevel("SelectPet", "Which pet do you want to evolve?", petIds);
         }
     }
+}
+
+function levelSelectPet(petId) {
+    var petSlot = qm.getPlayer().getPetIndex(petId);
+    if (petSlot < 0) {
+        qm.sendOk("Pet could not be evolved.");
+        qm.dispose();
+        return;
+    }
+
+    var oldPet = qm.getPlayer().getPet(petSlot);
+    var newPet = qm.evolvePet(petSlot);
+    if (newPet == null) {
+        qm.sendOk("Something wrong, try again.");
+        qm.dispose();
+        return;
+    }
+
+    qm.gainItem(5380000, -1);
+    qm.gainMeso(-10000);
+    qm.completeQuest();
+
+    qm.sendOk("Woo! It worked again! #rYou may find your new pet under your 'CASH' inventory.\r #kIt used to be a #b#i" + oldPet.getItemId() + "##t" + oldPet.getItemId() + "##k, and now it's \r a#b #i" + newPet.getItemId() + "##t" + newPet.getItemId() + "##k! \r\n Come back with 10,000 mesos and another Rock of Evolution if you don't like it!\r\n\r\n#fUI/UIWindow.img/QuestIcon/4/0#\r\n#v" + newPet.getItemId() + "# #t" + newPet.getItemId() + "#");
+    qm.dispose();
 }

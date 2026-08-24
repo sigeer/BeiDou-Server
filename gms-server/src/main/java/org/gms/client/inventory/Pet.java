@@ -32,6 +32,9 @@ import org.gms.util.DatabaseConnection;
 import org.gms.util.PacketCreator;
 import org.gms.util.Pair;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -51,8 +54,13 @@ public class Pet extends Item {
     private int Fh;
     private Point pos;
     private int stance;
-    private boolean summoned;
+    @Getter
+    @Setter
+    private int initPetSlot;
     private int petAttribute = 0;
+    @Getter
+    @Setter
+    private short petSkill = 0;
 
     public enum PetAttribute {
         OWNER_SPEED(0x01);
@@ -77,7 +85,7 @@ public class Pet extends Item {
     public static Pet loadFromDb(int itemid, short position, int petid) {
         Pet ret = new Pet(itemid, position, petid);
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement("SELECT name, level, closeness, fullness, summoned, flag FROM pets WHERE petid = ?")) { // Get the pet details...
+             PreparedStatement ps = con.prepareStatement("SELECT name, level, closeness, fullness, pet_slot, pet_skill, flag FROM pets WHERE petid = ?")) { // Get the pet details...
             ps.setInt(1, petid);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -86,7 +94,8 @@ public class Pet extends Item {
                 ret.setTameness(Math.min(rs.getInt("closeness"), 30000));
                 ret.setLevel((byte) Math.min(rs.getByte("level"), 30));
                 ret.setFullness(Math.min(rs.getInt("fullness"), 100));
-                ret.setSummoned(rs.getInt("summoned") == 1);
+                ret.setInitPetSlot(rs.getInt("pet_slot"));
+                ret.setPetSkill(rs.getShort("pet_skill"));
                 ret.setPetAttribute(rs.getInt("flag"));
             }
             return ret;
@@ -106,16 +115,17 @@ public class Pet extends Item {
         }
     }
 
-    public void saveToDb() {
+    public void saveToDb(int currentPetSlot) {
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement("UPDATE pets SET name = ?, level = ?, closeness = ?, fullness = ?, summoned = ?, flag = ? WHERE petid = ?")) {
+             PreparedStatement ps = con.prepareStatement("UPDATE pets SET name = ?, level = ?, closeness = ?, fullness = ?, pet_slot = ?, pet_skill = ?, flag = ? WHERE petid = ?")) {
             ps.setString(1, getName());
             ps.setInt(2, getLevel());
             ps.setInt(3, getTameness());
             ps.setInt(4, getFullness());
-            ps.setInt(5, isSummoned() ? 1 : 0);
-            ps.setInt(6, getPetAttribute());
-            ps.setInt(7, getUniqueId());
+            ps.setInt(5, currentPetSlot);
+            ps.setInt(6, getPetSkill());
+            ps.setInt(7, getPetAttribute());
+            ps.setInt(8, getUniqueId());
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -124,7 +134,7 @@ public class Pet extends Item {
 
     public static int createPet(int itemid) {
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement("INSERT INTO pets (petid, name, level, closeness, fullness, summoned, flag) VALUES (?, ?, 1, 0, 100, 0, 0)")) {
+             PreparedStatement ps = con.prepareStatement("INSERT INTO pets (petid, name, level, closeness, fullness, flag) VALUES (?, ?, 1, 0, 100, 0)")) {
             int ret = CashIdGenerator.generateCashId();
             ps.setInt(1, ret);
             ps.setString(2, ItemInformationProvider.getInstance().getName(itemid));
@@ -138,7 +148,7 @@ public class Pet extends Item {
 
     public static int createPet(int itemid, byte level, int tameness, int fullness) {
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement("INSERT INTO pets (petid, name, level, closeness, fullness, summoned, flag) VALUES (?, ?, ?, ?, ?, 0, 0)")) {
+             PreparedStatement ps = con.prepareStatement("INSERT INTO pets (petid, name, level, closeness, fullness, flag) VALUES (?, ?, ?, ?, ?, 0)")) {
             int ret = CashIdGenerator.generateCashId();
             ps.setInt(1, ret);
             ps.setString(2, ItemInformationProvider.getInstance().getName(itemid));
@@ -228,7 +238,7 @@ public class Pet extends Item {
         }
 
         owner.getMap().broadcastMessage(PacketCreator.petFoodResponse(owner.getId(), slot, enjoyed, owner.hasPetChatballoon(slot)));
-        saveToDb();
+        saveToDb(slot);
 
         Item petz = owner.getInventory(InventoryType.CASH).getItem(getPosition());
         if (petz != null) {
@@ -272,27 +282,28 @@ public class Pet extends Item {
         this.stance = stance;
     }
 
-    public boolean isSummoned() {
-        return summoned;
-    }
-
-    public void setSummoned(boolean yes) {
-        this.summoned = yes;
+    /**
+     * 获取对应的Item
+     * @param owner
+     * @return
+     */
+    public Item getItem(Character owner) {
+        return owner.getInventory(InventoryType.CASH).getItem(getPosition());
     }
 
     public int getPetAttribute() {
         return this.petAttribute;
     }
 
-    private void setPetAttribute(int flag) {
+    public void setPetAttribute(int flag) {
         this.petAttribute = flag;
     }
 
     public void addPetAttribute(Character owner, PetAttribute flag) {
         this.petAttribute |= flag.getValue();
-        saveToDb();
+        saveToDb(owner.getPetIndex(this));
 
-        Item petz = owner.getInventory(InventoryType.CASH).getItem(getPosition());
+        Item petz = getItem(owner);
         if (petz != null) {
             owner.forceUpdateItem(petz);
         }
@@ -300,9 +311,19 @@ public class Pet extends Item {
 
     public void removePetAttribute(Character owner, PetAttribute flag) {
         this.petAttribute &= 0xFFFFFFFF ^ flag.getValue();
-        saveToDb();
+        saveToDb(owner.getPetIndex(this));
 
-        Item petz = owner.getInventory(InventoryType.CASH).getItem(getPosition());
+        Item petz = getItem(owner);
+        if (petz != null) {
+            owner.forceUpdateItem(petz);
+        }
+    }
+
+    public void learnSkill(Character owner, short skillId) {
+        this.petSkill |= skillId;
+        saveToDb(owner.getPetIndex(this));
+
+        Item petz = getItem(owner);
         if (petz != null) {
             owner.forceUpdateItem(petz);
         }

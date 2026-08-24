@@ -1,0 +1,4 @@
+ALTER TABLE `pets` ADD COLUMN `pet_slot` INT NOT NULL DEFAULT -1 COMMENT '-1:未召唤';
+ALTER TABLE `pets` DROP COLUMN `summoned`;
+
+ALTER TABLE `pets` ADD COLUMN `pet_skill` INT NOT NULL DEFAULT 0;

@@ -31,6 +31,7 @@ function start(mode, type, selection) {
 //nothing here?
 }
 
+
 function end(mode, type, selection) {
     status++;
     if (mode != 1) {
@@ -53,64 +54,40 @@ function end(mode, type, selection) {
             qm.dropMessage(1, "how did this get here?");
             qm.dispose();
         } else if (qm.canHold(5000048)) {
-            var pet = 0;
-            var after;
-            var i;
-
-            for (i = 0; i < 3; i++) {
-                if (qm.getPlayer().getPet(i) != null && qm.getPlayer().getPet(i).getItemId() == 5000048) {
-                    pet = qm.getPlayer().getPet(i);
-                    break;
-                }
-            }
-            if (i == 3) {
-                qm.getPlayer().message("Pet could not be evolved.");
-                qm.dispose();
-                return;
-            }
-
-            var tameness = pet.getTameness();
-            if (tameness < 1642) {
+            var petIds = qm.getPlayer().getPets()
+                .filter(x => x != null && x.getItemId() == 5000048 && x.getLevel() >= 15)
+                .map(x => x.getUniqueId());
+            if (petIds.length === 0) {
                 qm.sendOk("It looks like your pet is not grown enough to be evolved yet. Train it a bit more, util it reaches #blevel 15#k.");
                 qm.dispose();
                 return;
             }
-
-            var level = pet.getLevel();
-            var fullness = pet.getFullness();
-            var name = pet.getName();
-
-            var rand = 1 + Math.floor(Math.random() * 9);
-
-            if (rand >= 1 && rand <= 2) {
-                after = 5000049;
-            } else if (rand >= 3 && rand <= 4) {
-                after = 5000050;
-            } else if (rand >= 5 && rand <= 6) {
-                after = 5000051;
-            } else if (rand >= 7 && rand <= 8) {
-                after = 5000052;
-            } else if (rand == 9) {
-                after = 5000053;
-            } else {
-                qm.sendOk("Something wrong. Try again.");
-                qm.dispose();
-                return;
-            }
-
-            //qm.gainItem(5000048 + rand);
-            qm.gainItem(5380000, -1);
-            qm.gainMeso(-10000);
-            qm.evolvePet(i, after);
-            qm.completeQuest();
-            
-//            var petId = Pet.createPet(rand + 5000049, level, closeness, fullness);
-//            if (petId == -1) return;
-//            InventoryManipulator.addById(qm.getClient(), rand+5000049, 1, "", petId);
-            qm.dispose();
+            qm.askPetLevel("SelectPet", "Which pet do you want to evolve?", petIds);
         } else {
             qm.dropMessage(1, "Your inventory is full");
             qm.dispose();
         }
     }
+}
+
+function levelSelectPet(petId) {
+    var petSlot = qm.getPlayer().getPetIndex(petId);
+    if (petSlot < 0) {
+        qm.getPlayer().message("Pet could not be evolved.");
+        qm.dispose();
+        return;
+    }
+
+    var newPet = qm.evolvePet(petSlot);
+    if (newPet == null) {
+        qm.sendOk("Something wrong, try again.");
+        qm.dispose();
+        return;
+    }
+
+    qm.gainItem(5380000, -1);
+    qm.gainItem(4000111, -50);
+    qm.completeQuest();
+
+    qm.dispose();
 }

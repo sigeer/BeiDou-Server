@@ -424,9 +424,9 @@ public class PacketCreator {
             p.writeByte(pet.getFullness());
             addExpirationTime(p, item.getExpiration());
             p.writeShort(pet.getPetAttribute()); // PetAttribute noticed by lrenex & Spoon
-            p.writeShort(0); // PetSkill
+            p.writeShort(pet.getPetSkill()); // PetSkill
             p.writeInt(18000); // RemainLife
-            p.writeShort(0); // attribute
+            p.writeShort(item.getFlag()); // attribute
             return;
         }
         if (equip == null) {
@@ -3452,6 +3452,21 @@ public class PacketCreator {
         return p;
     }
 
+    public static Packet askPet(int npc, String talk, long[] petIds) {
+        OutPacket p = OutPacket.create(SendOpcode.NPC_TALK);
+        p.writeByte(4);
+        p.writeInt(npc);
+        p.writeByte(9);
+        p.writeByte(0);
+        p.writeString(talk);
+        p.writeByte(petIds.length);
+        for (long petId : petIds) {
+            p.writeLong(petId);
+            p.writeByte(0); // 客户端未使用
+        }
+        return p;
+    }
+
     public static Packet showBuffEffect(int chrId, int skillId, int effectId) {
         return showBuffEffect(chrId, skillId, effectId, (byte) 3);
     }
@@ -4510,11 +4525,29 @@ public class PacketCreator {
         return p;
     }
 
+    public static Packet showOwnPetEvolution(byte index) {
+        final OutPacket p = OutPacket.create(SendOpcode.SHOW_ITEM_GAIN_INCHAT);
+        p.writeByte(4);
+        p.writeByte(3);
+        p.writeByte(index); // Pet Index
+        return p;
+    }
+
+
     public static Packet showPetLevelUp(Character chr, byte index) {
         final OutPacket p = OutPacket.create(SendOpcode.SHOW_FOREIGN_EFFECT);
         p.writeInt(chr.getId());
         p.writeByte(4);
         p.writeByte(0);
+        p.writeByte(index);
+        return p;
+    }
+
+    public static Packet showPetEvolution(Character chr, byte index) {
+        final OutPacket p = OutPacket.create(SendOpcode.SHOW_FOREIGN_EFFECT);
+        p.writeInt(chr.getId());
+        p.writeByte(4);
+        p.writeByte(3);
         p.writeByte(index);
         return p;
     }

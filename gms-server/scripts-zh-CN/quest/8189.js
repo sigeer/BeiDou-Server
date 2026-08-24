@@ -45,61 +45,40 @@ function end(mode, type, selection) {
 
             qm.sendYesNo("好的，那么，让我们再来一次吧，好吗？和往常一样，这将是随机的，我将拿走你的一个进化之石。\r\n\r #r#e准备好了吗？#n#k");
         } else if (status == 1) {
-            qm.sendNextPrev("Then here we go...! #rHYAHH!#k");
+            qm.sendNextPrev("好的，我们开始吧...! #rHYAHH!#k");
         } else if (status == 2) {
-            var petidx = -1;
-            var petItemid;
-            for (var i = 0; i < 3; i++) {
-                var pet = qm.getPlayer().getPet(i);
-                if (pet != null) {
-                    var id = pet.getItemId();
-                    if (id >= 5000029 && id <= 5000033) {
-                        petItemid = 5000030;
-                        petidx = i;
-                        break;
-                    } else if (id >= 5000048 && id <= 5000053) {    // thanks Conrad for noticing Robo pets not being able to re-evolve
-                        petItemid = 5000049;
-                        petidx = i;
-                        break;
-                    }
-                }
-            }
-
-            if (petidx == -1) {
-                qm.sendOk("出现了一些问题 请重试.");
+            var petIds = qm.getPlayer().getPets()
+                .filter(x => x != null && ((x.getItemId() >= 5000030 && x.getItemId() <= 5000033) || (x.getItemId() >= 5000049 && x.getItemId() <= 5000052)) && x.getLevel() >= 15)
+                .map(x => x.getUniqueId());
+            if (petIds.length === 0) {
+                qm.sendOk("看来你的宠物还没有成长到可以进化的程度。再训练它一段时间，直到它达到 #b15级#k.");
                 qm.dispose();
                 return;
             }
-
-            var pool = (petItemid == 5000030) ? 10 : 11;
-            do {
-                var rand = 1 + Math.floor(Math.random() * pool);
-                var after = 0;
-                if (rand >= 1 && rand <= 3) {
-                    after = petItemid;
-                } else if (rand >= 4 && rand <= 6) {
-                    after = petItemid + 1;
-                } else if (rand >= 7 && rand <= 9) {
-                    after = petItemid + 2;
-                } else if (rand == 10) {
-                    after = petItemid + 3;
-                } else {
-                    after = petItemid + 4;
-                }
-            } while (after == pet.getItemId());
-
-            /*if (name.equals(ItemInformationProvider.getInstance().getName(id))) {
-    name = ItemInformationProvider.getInstance().getName(after);
-} */
-
-            qm.gainMeso(-10000);
-            qm.gainItem(5380000, -1);
-            qm.evolvePet(petidx, after);
-            qm.completeQuest();
-
-            qm.sendOk("哇！又成功了！#r你可以在'现金'物品栏下找到你的新宠物。\r #k它曾经是一个#b#i" + id + "##t" + id + "##k，现在它是一个#b#i" + after + "##t" + after + "##k！\r\n 如果你不喜欢，带着1万枚金币和另一个进化之石回来吧！\r\n\r\n#fUI/UIWindow.img/QuestIcon/4/0#\r\n#v" + after + "# #t" + after + "#");
-        } else if (status == 3) {
-            qm.dispose();
+            qm.askPetLevel("SelectPet", "选择要进化哪只宠物？", petIds);
         }
     }
+}
+function levelSelectPet(petId) {
+    var petSlot = qm.getPlayer().getPetIndex(petId);
+    if (petSlot < 0) {
+        qm.sendOk("宠物无法进化.");
+        qm.dispose();
+        return;
+    }
+
+    var oldPet = qm.getPlayer().getPet(petSlot);
+    var newPet = qm.evolvePet(petSlot);
+    if (newPet == null) {
+        qm.sendOk("出了点问题。请重试。");
+        qm.dispose();
+        return;
+    }
+
+    qm.gainItem(5380000, -1);
+    qm.gainMeso(-10000);
+    qm.completeQuest();
+
+    qm.sendOk("哇！又成功了！#r你可以在'现金'物品栏下找到你的新宠物。\r #k它曾经是一个#b#i" + oldPet.getItemId() + "##t" + oldPet.getItemId() + "##k，现在它是一个#b#i" + newPet.getItemId() + "##t" + newPet.getItemId() + "##k！\r\n 如果你不喜欢，带着1万枚金币和另一个进化之石回来吧！\r\n\r\n#fUI/UIWindow.img/QuestIcon/4/0#\r\n#v" + newPet.getItemId() + "# #t" + newPet.getItemId() + "#");
+    qm.dispose();
 }

@@ -49,7 +49,7 @@ public final class PetLootHandler extends AbstractPacketHandler {
 
         byte petIndex = chr.getPetIndex(p.readInt());
         Pet pet = chr.getPet(petIndex);
-        if (pet == null || !pet.isSummoned()) {
+        if (pet == null) {
             c.sendPacket(PacketCreator.enableActions());
             return;
         }

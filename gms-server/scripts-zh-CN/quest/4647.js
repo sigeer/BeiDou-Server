@@ -58,7 +58,7 @@ function end(mode, type, selection) {
         if (status == 0) {
             if (qm.haveItem(5460000)) {
                 qm.completeQuest();
-                qm.teachSkill(8, 1, 1, -1);
+                qm.teachSkill(qm.getPlayer().getJob().getMultiPetSkillId(), 1, 1, -1);
                 qm.gainItem(5460000, -1, false);
                 qm.sendOk("你获得了宠物点心！谢谢，现在你可以同时携带多只宠物了！");
             } else {

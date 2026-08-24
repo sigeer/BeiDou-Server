@@ -24,6 +24,8 @@ package org.gms.scripting.quest;
 import org.gms.client.Client;
 import org.gms.client.QuestStatus;
 import org.gms.constants.game.GameConstants;
+import org.gms.constants.game.NextLevelType;
+import org.gms.model.pojo.NextLevelContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.gms.scripting.AbstractScriptManager;
@@ -93,7 +95,7 @@ public class QuestScriptManager extends AbstractScriptManager {
         }
     }
 
-    public void start(Client c, byte mode, byte type, int selection) {
+    public void start(Client c, byte mode, byte type, long selection) {
         Invocable iv = scripts.get(c);
         if (iv != null) {
             try {
@@ -145,7 +147,7 @@ public class QuestScriptManager extends AbstractScriptManager {
         }
     }
 
-    public void end(Client c, byte mode, byte type, int selection) {
+    public void end(Client c, byte mode, byte type, long selection) {
         Invocable iv = scripts.get(c);
         if (iv != null) {
             try {
@@ -157,6 +159,65 @@ public class QuestScriptManager extends AbstractScriptManager {
             }
         }
     }
+
+    public void nextLevel(Client c, byte mode, byte type, long selection) {
+        Invocable iv = scripts.get(c);
+        if (iv != null) {
+            try {
+                c.tryacquireClient();
+                c.setClickedNPC();
+                NextLevelContext nextLevelContext = c.getQM().getNextLevelContext();
+                switch (nextLevelContext.getLevelType()) {
+                    case NextLevelType.SEND_SELECT -> {
+                        if (mode == 0) {
+                            dispose(c);
+                            return;
+                        }
+                        iv.invokeFunction("level" + nextLevelContext.getPrefix() + selection);
+                    }
+                    case NextLevelType.GET_INPUT_NUMBER, NextLevelType.SEND_NEXT_SELECT -> {
+                        if (mode == 0) {
+                            dispose(c);
+                            return;
+                        }
+                        iv.invokeFunction("level" + nextLevelContext.getNextLevel(), selection);
+                    }
+                    case NextLevelType.GET_INPUT_TEXT -> {
+                        if (mode == 0) {
+                            dispose(c);
+                            return;
+                        }
+                        iv.invokeFunction("level" + nextLevelContext.getNextLevel(), c.getQM().getText());
+                    }
+                    case NextLevelType.SEND_LAST_NEXT, NextLevelType.SEND_NEXT, NextLevelType.SEND_LAST,
+                         NextLevelType.SEND_OK, NextLevelType.SEND_ACCEPT_DECLINE, NextLevelType.SEND_YES_NO -> {
+                        if (mode == -1) {
+                            dispose(c);
+                            return;
+                        }
+
+                        if (mode == 0) {
+                            iv.invokeFunction("level" + nextLevelContext.getLastLevel());
+                        } else {
+                            iv.invokeFunction("level" + nextLevelContext.getNextLevel());
+                        }
+                    }
+                    default -> {
+                        log.error("Unsupported level type: {}", nextLevelContext.getLevelType());
+                        dispose(c);
+                    }
+                }
+            } catch (Exception t) {
+                if (getQM(c) != null) {
+                    log.error("Error performing quest script action for npc: {}", getQM(c).getNpc(), t);
+                }
+                dispose(c);
+            } finally {
+                c.releaseClient();
+            }
+        }
+    }
+
 
     public void raiseOpen(Client c, short questid, int npc) {
         try {

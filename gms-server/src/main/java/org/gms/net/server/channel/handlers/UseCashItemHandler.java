@@ -413,7 +413,7 @@ public final class UseCashItemHandler extends AbstractPacketHandler {
             }
             String newName = p.readString();
             pet.setName(newName);
-            pet.saveToDb();
+            pet.saveToDb(0);
 
             Item item = player.getInventory(InventoryType.CASH).getItem(pet.getPosition());
             if (item != null) {

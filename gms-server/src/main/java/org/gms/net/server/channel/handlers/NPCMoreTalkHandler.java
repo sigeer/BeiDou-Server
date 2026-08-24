@@ -56,29 +56,39 @@ public final class NPCMoreTalkHandler extends AbstractPacketHandler {
                 c.getCM().dispose();
             }
         } else {
-            int selection = -1;
-            if (p.available() >= 4) {
+            long selection = -1;
+            if (p.available() >= 8) {
+                selection = p.readLong();
+            } else if (p.available() >= 4) {
                 selection = p.readInt();
             } else if (p.available() > 0) {
                 selection = p.readUnsignedByte();
             }
             if (c.getQM() != null) {
-                if (c.getQM().isStart()) {
-                    QuestScriptManager.getInstance().start(c, action, lastMsg, selection);
-                } else {
-                    QuestScriptManager.getInstance().end(c, action, lastMsg, selection);
-                }
+                qmRouting(c, action, lastMsg, selection);
             } else if (c.getCM() != null) {
                 cmRouting(c, action, lastMsg, selection);
             }
         }
     }
 
-    private void cmRouting(Client c, byte action, byte lastMsg, int selection) {
+    private void cmRouting(Client c, byte action, byte lastMsg, long selection) {
         if (c.getCM().getNextLevelContext().getLevelType() == null) {
             NPCScriptManager.getInstance().action(c, action, lastMsg, selection);
         } else {
             NPCScriptManager.getInstance().nextLevel(c, action, lastMsg, selection);
+        }
+    }
+
+    private void qmRouting(Client c, byte action, byte lastMsg, long selection) {
+        if (c.getQM().getNextLevelContext().getLevelType() == null) {
+            if (c.getQM().isStart()) {
+                QuestScriptManager.getInstance().start(c, action, lastMsg, selection);
+            } else {
+                QuestScriptManager.getInstance().end(c, action, lastMsg, selection);
+            }
+        } else {
+            QuestScriptManager.getInstance().nextLevel(c, action, lastMsg, selection);
         }
     }
 }

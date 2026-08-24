@@ -38,8 +38,10 @@ public class PetsDO implements Serializable {
 
     private Long fullness;
 
-    private Boolean summoned;
+    private Integer petSlot;
 
     private Long flag;
+
+    private Short petSkill;
 
 }

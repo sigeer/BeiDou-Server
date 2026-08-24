@@ -753,15 +753,27 @@ public class Character extends AbstractCharacterObject {
         this.mesosTraded += gain;
     }
 
-    public void addPet(Pet pet) {
+    public int addPet(Pet pet) {
         petLock.lock();
         try {
             for (int i = 0; i < 3; i++) {
                 if (pets[i] == null) {
                     pets[i] = pet;
-                    return;
+                    return i;
                 }
             }
+            return -1;
+        } finally {
+            petLock.unlock();
+        }
+    }
+
+    public int setPet(Pet pet, int petSlot) {
+        petLock.lock();
+        try {
+            if (petSlot >= 0)
+                pets[petSlot] = pet;
+            return petSlot;
         } finally {
             petLock.unlock();
         }
@@ -6482,8 +6494,8 @@ public class Character extends AbstractCharacterObject {
                 chr.getInventory(inventoryType).addItemFromDB(item);
                 if (item.getPetId() > -1) {
                     Pet pet = item.getPet();
-                    if (pet != null && pet.isSummoned()) {
-                        chr.addPet(pet);
+                    if (pet != null && pet.getInitPetSlot() >= 0 && pet.getInitPetSlot() < 3) {
+                        chr.setPet(pet, pet.getInitPetSlot());
                         // 登录时对已召唤宠物统一走同一套过滤配置加载逻辑，避免后续入口行为不一致。
                         chr.loadPetExcludedItems(item.getPetId());
                     }
@@ -7222,6 +7234,69 @@ public class Character extends AbstractCharacterObject {
         }
     }
 
+    /**
+     * 召唤宠物
+     * 
+     * @param {Pet} pet - 召唤的宠物，null: 召回第petSlot个
+     * @param {int} petSlot 要召唤在第几个，-1：按顺序召唤
+     * @param {boolean} isEvolve 是否在进化
+     */
+    public void summonPet(Pet pet, int petSlot, boolean isEvolve) {
+        Pet oldPet = getPet(petSlot);
+
+        if (isEvolve && oldPet == null) {
+            // 进化时必定存在原始宠物
+            isEvolve = false;
+        }
+
+        if (oldPet != null) {
+            getMap().broadcastMessage(this, PacketCreator.showPet(this, oldPet, true, false), true);
+            
+            if (pet == null) {
+                getClient().getWorldServer().unregisterPetHunger(this, (byte)petSlot);
+                removePet(oldPet, pet == null);
+            }
+
+            oldPet.saveToDb(-1);
+        }
+
+        if (pet != null) {
+            petSlot = petSlot < 0 ? addPet(pet) : setPet(pet, petSlot);
+            if (petSlot < 0)
+                return;
+
+            Point pos;
+            if (isEvolve) {
+                pos = oldPet.getPos();
+            } else {
+                pos = getPosition();
+                pos.y -= 12;
+            }
+            pet.setPos(pos);
+            pet.setFh(getMap().getFootholds().findBelow(pet.getPos()).getId());
+            pet.setStance(isEvolve ? oldPet.getStance() : 0);
+            pet.saveToDb(petSlot);
+
+            // 登录时未召唤的宠物不会预加载过滤配置，这里补载后再同步给客户端。
+            loadPetExcludedItems(pet.getUniqueId());
+            getMap().broadcastMessage(this, PacketCreator.showPet(this, pet, false, false), true);
+            if (isEvolve) {
+                sendPacket(PacketCreator.showOwnPetEvolution((byte)petSlot));
+                getMap().broadcastMessage(this, PacketCreator.showPetEvolution(this, (byte)petSlot), false);
+            }
+
+            if (oldPet == null) {
+                getClient().getWorldServer().registerPetHunger(this, (byte)petSlot);
+            }
+        }
+
+        sendPacket(PacketCreator.petStatUpdate(this));
+        sendPacket(PacketCreator.enableActions());
+
+        commitExcludedItems();
+
+    }
+
     public void removeVisibleMapObject(MapObject mo) {
         visibleMapObjects.remove(mo);
     }
@@ -7707,7 +7782,7 @@ public class Character extends AbstractCharacterObject {
                 }
 
                 for (Pet pet : petList) {
-                    pet.saveToDb();
+                    pet.saveToDb(getPetIndex(pet));
                 }
 
                 // Key config
@@ -8688,12 +8763,12 @@ public class Character extends AbstractCharacterObject {
         int newFullness = pet.getFullness() - PetDataFactory.getHunger(pet.getItemId());
         if (newFullness <= 5) {
             pet.setFullness(15);
-            pet.saveToDb();
+            pet.saveToDb(petSlot);
             unEquipPet(pet, true);
             dropMessage(6, I18nUtil.getMessage("Character.runFullnessSchedule"));
         } else {
             pet.setFullness(newFullness);
-            pet.saveToDb();
+            pet.saveToDb(petSlot);
             Item petz = getInventory(InventoryType.CASH).getItem(pet.getPosition());
             if (petz != null) {
                 forceUpdateItem(petz);
@@ -8745,8 +8820,7 @@ public class Character extends AbstractCharacterObject {
         Pet chrPet = this.getPet(petIdx);
 
         if (chrPet != null) {
-            chrPet.setSummoned(false);
-            chrPet.saveToDb();
+            chrPet.saveToDb(-1);
         }
 
         this.getClient().getWorldServer().unregisterPetHunger(this, petIdx);

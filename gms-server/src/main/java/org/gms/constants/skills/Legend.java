@@ -26,6 +26,7 @@ package org.gms.constants.skills;
  */
 public class Legend {
     public static final int THREE_SNAILS = 20001000;
+    public static final int FOLLOW_THE_LEADER = 20000024;
     public static final int RECOVERY = 20001001;
     public static final int AGILE_BODY = 20001002;
     public static final int LEGENDARY_SPIRIT = 20001003;

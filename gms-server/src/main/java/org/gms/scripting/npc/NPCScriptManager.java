@@ -169,7 +169,7 @@ public class NPCScriptManager extends AbstractScriptManager {
         }
     }
 
-    public void action(Client c, byte mode, byte type, int selection) {
+    public void action(Client c, byte mode, byte type, long selection) {
         Invocable iv = scripts.get(c);
         if (iv != null) {
             try {
@@ -187,7 +187,7 @@ public class NPCScriptManager extends AbstractScriptManager {
         }
     }
 
-    public void nextLevel(Client c, byte mode, byte type, int selection) {
+    public void nextLevel(Client c, byte mode, byte type, long selection) {
         Invocable iv = scripts.get(c);
         if (iv != null) {
             try {

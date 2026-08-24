@@ -22,6 +22,10 @@
 package org.gms.client;
 
 import lombok.Getter;
+
+import org.gms.constants.skills.Beginner;
+import org.gms.constants.skills.Legend;
+import org.gms.constants.skills.Noblesse;
 import org.gms.util.I18nUtil;
 
 
@@ -150,5 +154,20 @@ public enum Job {
         }
 
         return BEGINNER;
+    }
+
+    public int getMultiPetSkillId() {
+        int type = id / 1000;
+        switch (type) {
+            case 0:
+                return Beginner.FOLLOW_THE_LEADER;
+            case 1:
+                return Noblesse.FOLLOW_THE_LEADER;
+            case 2:
+                return Legend.FOLLOW_THE_LEADER;
+            default:
+                break;
+        }
+        return 0;
     }
 }

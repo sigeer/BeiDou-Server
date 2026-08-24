@@ -267,6 +267,11 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
         getClient().sendPacket(PacketCreator.getDimensionalMirror(text));
     }
 
+    public void askPet(String talk, long[] petIds) {
+        nextLevelContext.clear();
+        getClient().sendPacket(PacketCreator.askPet(npc, talk, petIds));
+    }
+
     public void setGetText(String text) {
         this.getText = text;
     }
@@ -1451,5 +1456,11 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
         nextLevelContext.setLevelType(NextLevelType.SEND_YES_NO);
         nextLevelContext.setLastLevel(noLevel);
         nextLevelContext.setNextLevel(yesLevel);
+    }
+    
+    public void askPetLevel(String nextLevel, String talk, long[] petIds) {
+        askPet(talk, petIds);
+        nextLevelContext.setLevelType(NextLevelType.SEND_NEXT_SELECT);
+        nextLevelContext.setNextLevel(nextLevel);
     }
 }

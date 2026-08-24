@@ -26,9 +26,11 @@ import org.gms.provider.DataProvider;
 import org.gms.provider.DataProviderFactory;
 import org.gms.provider.DataTool;
 import org.gms.provider.wz.WZFiles;
+import org.gms.util.Randomizer;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Danny (Leifde)
@@ -37,6 +39,7 @@ public class PetDataFactory {
     private static final DataProvider dataRoot = DataProviderFactory.getDataProvider(WZFiles.ITEM);
     private static final Map<String, PetCommand> petCommands = new HashMap<>();
     private static final Map<Integer, Integer> petHunger = new HashMap<>();
+    private static final Map<Integer, Map<Integer, Integer>> petEvolution = new ConcurrentHashMap<>();
 
     public static PetCommand getPetCommand(int petId, int skillId) {
         PetCommand ret = petCommands.get(petId + "" + skillId);
@@ -72,5 +75,25 @@ public class PetDataFactory {
             }
             return ret;
         }
+    }
+
+    public static int getEvolvedPetItemId(int petItemId) {
+        Map<Integer, Integer> map = petEvolution.get(petItemId);
+        if (map != null) {
+            return Randomizer.pickByWeight(map);
+        }
+        map = new ConcurrentHashMap<>();
+        Data petData = dataRoot.getData("Pet/" + petItemId + ".img");
+        if (petData == null) {
+            return 0;
+        }
+        int evolveCount = DataTool.getInt(petData.getChildByPath("info/evolNo"), 1);
+        for (int i = 1; i <= evolveCount; i++) {
+            int nextPetItemId = DataTool.getInt(petData.getChildByPath("info/evol" + i));
+            int nextPetProb = DataTool.getInt(petData.getChildByPath("info/evolProb" + i));
+            map.put(nextPetItemId, nextPetProb);
+        }
+        petEvolution.put(petItemId, map);
+        return Randomizer.pickByWeight(map);
     }
 }
