@@ -1427,7 +1427,11 @@ public class StatEffect {
                     hpchange /= 2;
                 }
             } else { // assumption: this is heal
-                float hpHeal = (applyfrom.getCurrentMaxHp() * (float) hp / (100.0f * affectedPlayers));
+                float hpHeal = hp;
+                
+                if (sourceid == Cleric.HEAL)
+                    hpHeal = (applyfrom.getCurrentMaxHp() * (float)hp / (100.0f * affectedPlayers));
+                
                 hpchange += hpHeal;
                 if (applyfrom.hasDisease(Disease.ZOMBIFY)) {
                     hpchange = -hpchange;
@@ -1797,6 +1801,7 @@ public class StatEffect {
             case Outlaw.GAVIOTA:
                 return SummonMovementType.CIRCLE_FOLLOW;
             case DarkKnight.BEHOLDER:
+                return SummonMovementType.ASSISTANT;
             case FPArchMage.ELQUINES:
             case ILArchMage.IFRIT:
             case Bishop.BAHAMUT:

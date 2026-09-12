@@ -22,7 +22,7 @@
 package org.gms.server.maps;
 
 public enum SummonMovementType {
-    STATIONARY(0), FOLLOW(1), CIRCLE_FOLLOW(3);
+    STATIONARY(0), FOLLOW(1),  ASSISTANT(2), CIRCLE_FOLLOW(3);
     private final int val;
 
     SummonMovementType(int val) {
