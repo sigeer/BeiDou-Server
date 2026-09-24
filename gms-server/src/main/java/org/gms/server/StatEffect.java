@@ -150,6 +150,7 @@ public class StatEffect {
     private short bulletCount, bulletConsume;
     private byte mapProtection;
     private CardItemupStats cardStats;
+    private int skillLevel;
 
     private static class CardItemupStats {
         protected int itemCode, prob;
@@ -212,12 +213,12 @@ public class StatEffect {
         return 0;
     }
 
-    public static StatEffect loadSkillEffectFromData(Data source, int skillid, boolean overtime) {
-        return loadFromData(source, skillid, true, overtime);
+    public static StatEffect loadSkillEffectFromData(Data source, int skillid, int skillLevel, boolean overtime) {
+        return loadFromData(source, skillid, true, skillLevel, overtime);
     }
 
     public static StatEffect loadItemEffectFromData(Data source, int itemid) {
-        return loadFromData(source, itemid, false, false);
+        return loadFromData(source, itemid, false, 0, false);
     }
 
     private static void addBuffStatPairToListIfNotZero(List<Pair<BuffStat, Integer>> list, BuffStat buffstat, Integer val) {
@@ -236,7 +237,7 @@ public class StatEffect {
         }
     }
 
-    private static StatEffect loadFromData(Data source, int sourceid, boolean skill, boolean overTime) {
+    private static StatEffect loadFromData(Data source, int sourceid, boolean skill, int skillLevel, boolean overTime) {
         StatEffect ret = new StatEffect();
         ret.duration = DataTool.getIntConvert("time", source, -1);
         ret.hp = (short) DataTool.getInt("hp", source, 0);
@@ -295,6 +296,7 @@ public class StatEffect {
         }
         ret.sourceid = sourceid;
         ret.skill = skill;
+        ret.skillLevel = skillLevel;
         if (!ret.skill && ret.duration > -1) {
             ret.overTime = true;
         } else {
@@ -592,7 +594,7 @@ public class StatEffect {
                 case FPArchMage.MANA_REFLECTION:
                 case ILArchMage.MANA_REFLECTION:
                 case Bishop.MANA_REFLECTION:
-                    statups.add(new Pair<>(BuffStat.MANA_REFLECTION, 1));
+                    statups.add(new Pair<>(BuffStat.MANA_REFLECTION, skillLevel));
                     break;
                 case Bishop.HOLY_SHIELD:
                     statups.add(new Pair<>(BuffStat.HOLY_SHIELD, x));

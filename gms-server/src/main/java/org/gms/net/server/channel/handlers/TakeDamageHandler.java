@@ -71,9 +71,11 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
         byte damagefrom = p.readByte();
         p.readByte(); //Element
         int damage = p.readInt();
+        double finalDamage = damage;
+        int finalDamageValue = damage;
         int oid = 0, monsteridfrom = 0, pgmr = 0, direction = 0;
         int pos_x = 0, pos_y = 0, fake = 0;
-        boolean is_pgmr = false, is_pg = true, is_deadly = false;
+        boolean is_pg = true, is_deadly = false;
         int mpattack = 0;
         Monster attacker = null;
         final MapleMap map = chr.getMap();
@@ -153,14 +155,14 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
             direction = p.readByte();
 
             if (p.available() >= 2) {
-                int reflect = p.readByte();
+                pgmr = p.readUnsignedByte();
                 int guardingData = p.readByte();
-                if (reflect > 0 || guardingData > 1) {
-                    byte isPowerGuard = p.readByte();
+                if (pgmr > 0 || guardingData > 1) {
+                    is_pg = p.readByte() > 0;
                     int reflectMobOid = p.readInt();
                     byte hitAction = p.readByte();
-                    short mobX = p.readShort();
-                    short mobY = p.readShort();
+                    pos_x = p.readShort();
+                    pos_y = p.readShort();
                     short charX = p.readShort();
                     short charY = p.readShort();
                     if (guardingData > 1 && attacker != null && !attacker.isBoss()) {
@@ -240,7 +242,7 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
                     if (chr.getBuffedValue(BuffStat.POWERGUARD) != null) { // PG works on bosses, but only at half of the rate.
                         int bouncedamage = (int) (damage * (chr.getBuffedValue(BuffStat.POWERGUARD).doubleValue() / (attacker.isBoss() ? 200 : 100)));
                         bouncedamage = Math.min(bouncedamage, attacker.getMaxHp() / 10);
-                        damage -= bouncedamage;
+                        finalDamage -= bouncedamage;
                         map.damageMonster(chr, attacker, bouncedamage);
                         map.broadcastMessage(chr, PacketCreator.damageMonster(oid, bouncedamage), false, true);
                         attacker.aggroMonsterDamage(chr, bouncedamage);
@@ -258,7 +260,8 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
 
                 StatEffect cBarrier = chr.getBuffEffect(BuffStat.COMBO_BARRIER);  // thanks BHB for noticing Combo Barrier buff not working
                 if (cBarrier != null) {
-                    damage *= (cBarrier.getX() / 1000.0);
+                    double discount = damage * (1 - (cBarrier.getX() / 1000.0));
+                    finalDamage -= discount;
                 }
             }
             if (damagefrom != -3 && damagefrom != -4) {
@@ -270,19 +273,22 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
                     achilles = chr.getSkillLevel(achilles1);
                 }
                 if (achilles != 0 && achilles1 != null) {
-                    damage *= (achilles1.getEffect(achilles).getX() / 1000.0);
+                    double discount = damage * (1 - (achilles1.getEffect(achilles).getX() / 1000.0));
+                    finalDamage -= discount;
                 }
 
                 Skill highDef = SkillFactory.getSkill(Aran.HIGH_DEFENSE);
                 int hdLevel = chr.getSkillLevel(highDef);
                 if (highDef != null && hdLevel > 0) {
-                    damage *= (highDef.getEffect(hdLevel).getX() / 1000.0);
+                    double discount = damage * (1 - (highDef.getEffect(achilles).getX() / 1000.0));
+                    finalDamage -= discount;
                 }
             }
             Integer mesoguard = chr.getBuffedValue(BuffStat.MESOGUARD);
+            finalDamageValue = (int)Math.ceil(finalDamage);
             if (chr.getBuffedValue(BuffStat.MAGIC_GUARD) != null && mpattack == 0) {
-                int mploss = (int) (damage * (chr.getBuffedValue(BuffStat.MAGIC_GUARD).doubleValue() / 100.0));
-                int hploss = damage - mploss;
+                int mploss = (int) (finalDamageValue * (chr.getBuffedValue(BuffStat.MAGIC_GUARD).doubleValue() / 100.0));
+                int hploss = finalDamageValue - mploss;
 
                 int curmp = chr.getMp();
                 if (mploss > curmp) {
@@ -292,26 +298,26 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
 
                 chr.addMPHP(-hploss, -mploss);
             } else if (mesoguard != null) {
-                damage = Math.round(damage / 2);
-                int mesoloss = (int) (damage * (mesoguard.doubleValue() / 100.0));
+                finalDamageValue = (int)Math.ceil(finalDamage);
+                int mesoloss = (int) (finalDamageValue * (mesoguard.doubleValue() / 100.0));
                 if (chr.getMeso() < mesoloss) {
                     chr.gainMeso(-chr.getMeso(), false);
                     chr.cancelBuffStats(BuffStat.MESOGUARD);
                 } else {
                     chr.gainMeso(-mesoloss, false);
                 }
-                chr.addMPHP(-damage, -mpattack);
+                chr.addMPHP(-finalDamageValue, -mpattack);
             } else {
                 if (chr.isRidingBattleship()) {
-                    chr.decreaseBattleshipHp(damage);
+                    chr.decreaseBattleshipHp(finalDamageValue);
                 }
-                chr.addMPHP(-damage, -mpattack);
+                chr.addMPHP(-finalDamageValue, -mpattack);
             }
         }
         if (!chr.isHidden()) {
-            map.broadcastMessage(chr, PacketCreator.damagePlayer(damagefrom, monsteridfrom, chr.getId(), damage, fake, direction, is_pgmr, pgmr, is_pg, oid, pos_x, pos_y), false);
+            map.broadcastMessage(chr, PacketCreator.damagePlayer(damagefrom, monsteridfrom, chr.getId(), finalDamageValue, fake, direction, pgmr > 0, pgmr, is_pg, oid, pos_x, pos_y), false);
         } else {
-            map.broadcastGMMessage(chr, PacketCreator.damagePlayer(damagefrom, monsteridfrom, chr.getId(), damage, fake, direction, is_pgmr, pgmr, is_pg, oid, pos_x, pos_y), false);
+            map.broadcastGMMessage(chr, PacketCreator.damagePlayer(damagefrom, monsteridfrom, chr.getId(), finalDamageValue, fake, direction, pgmr > 0, pgmr, is_pg, oid, pos_x, pos_y), false);
         }
         if (MapId.isDojo(map.getId())) {
             chr.setDojoEnergy(chr.getDojoEnergy() + GameConfig.getServerInt("dojo_energy_dmg"));
